@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Clasificador de Coches y Camiones</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .start-btn, .upload-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .upload-btn {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .start-btn:hover, .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .start-btn:hover {
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .upload-btn:hover {
+            box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
+        }
+
+        .start-btn:disabled, .upload-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .webcam-section {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .webcam-section.active {
+            display: block;
+        }
+
+        #webcam-container, #image-container {
+            border: 3px solid #4ecdc4;
+            border-radius: 15px;
+            overflow: hidden;
+            display: inline-block;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        #image-container {
+            display: none;
+        }
+
+        #image-container.active {
+            display: inline-block;
+        }
+
+        #uploaded-image {
+            max-width: 300px;
+            max-height: 300px;
+            width: auto;
+            height: auto;
+            display: block;
+        }
+
+        #webcam-container canvas {
+            display: block;
+        }
+
+        .results-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .results-title {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .prediction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .prediction-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .prediction-item.winner {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            color: white;
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .class-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .confidence-bar {
+            flex: 1;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin: 0 15px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .confidence-text {
+            font-weight: 600;
+            min-width: 50px;
+        }
+
+        .loading {
+            display: none;
+            color: #666;
+            font-style: italic;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .start-btn, .upload-btn {
+                width: 200px;
+                margin: 5px 0;
+            }
+            
+            .prediction-item {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .confidence-bar {
+                width: 100%;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1> Clasificador de Vehículos </h1>
+        <p class="subtitle">Detecta pizzas y hamburguesas usando inteligencia artificial</p>
+        
+        <div class="button-group">
+            <button id="start-btn" class="start-btn" onclick="init()">
+                🚀 Iniciar Cámara
+            </button>
+            
+            <button id="upload-btn" class="upload-btn" onclick="triggerFileUpload()">
+                📷 Subir Foto
+            </button>
+        </div>
+        
+        <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleFileUpload(event)">
+        
+        <div id="status" class="status" style="display: none;"></div>
+        <div id="loading" class="loading">Configurando cámara y cargando modelo...</div>
+        
+        <div id="webcam-section" class="webcam-section">
+            <div id="webcam-container"></div>
+            <div id="image-container">
+                <img id="uploaded-image" alt="Imagen subida">
+            </div>
+            <div class="results-container">
+                <div class="results-title">📊 Resultados de Clasificación</div>
+                <div id="label-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script>
+        // Configuración del modelo
+        const MODEL_URL = "./my_model/";
+        
+        let model, webcam, labelContainer, maxPredictions;
+        let isInitialized = false;
+        let predictions = [];
+        let isWebcamMode = false;
+        let animationId = null;
+
+        // Elementos del DOM
+        const startBtn = document.getElementById('start-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const webcamSection = document.getElementById('webcam-section');
+        const statusDiv = document.getElementById('status');
+        const loadingDiv = document.getElementById('loading');
+        const webcamContainer = document.getElementById('webcam-container');
+        const imageContainer = document.getElementById('image-container');
+        const uploadedImage = document.getElementById('uploaded-image');
+
+        // Función para mostrar estado
+        function showStatus(message, type = 'success') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Función para mostrar/ocultar loading
+        function toggleLoading(show) {
+            loadingDiv.className = show ? 'loading active' : 'loading';
+        }
+
+        // Cargar modelo una sola vez
+        async function loadModel() {
+            if (model) return model;
+            
+            const modelURL = MODEL_URL + "model.json";
+            const metadataURL = MODEL_URL + "metadata.json";
+            
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+            
+            return model;
+        }
+
+        // Configurar contenedores de predicción
+        function setupPredictionContainers() {
+            if (labelContainer.children.length > 0) return;
+            
+            for (let i = 0; i < maxPredictions; i++) {
+                const predictionDiv = document.createElement("div");
+                predictionDiv.className = "prediction-item";
+                predictionDiv.innerHTML = `
+                    <span class="class-name"></span>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill"></div>
+                    </div>
+                    <span class="confidence-text"></span>
+                `;
+                labelContainer.appendChild(predictionDiv);
+            }
+        }
+        
+        // Inicializar la aplicación con cámara
+        async function init() {
+            if (isWebcamMode && webcam) return;
+            
+            try {
+                startBtn.disabled = true;
+                uploadBtn.disabled = true;
+                startBtn.textContent = 'Iniciando...';
+                toggleLoading(true);
+
+                // Cargar modelo si no está cargado
+                await loadModel();
+
+                // Configurar webcam
+                const flip = true;
+                webcam = new tmImage.Webcam(300, 300, flip);
+                await webcam.setup();
+                await webcam.play();
+
+                // Limpiar contenedor de webcam y agregar canvas
+                const webcamContainer = document.getElementById("webcam-container");
+                webcamContainer.innerHTML = '';
+                webcamContainer.appendChild(webcam.canvas);
+                
+                // Configurar contenedores
+                labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = '';
+                setupPredictionContainers();
+
+                // Mostrar webcam, ocultar imagen
+                webcamContainer.style.display = 'inline-block';
+                imageContainer.className = 'image-container';
+                
+                // Mostrar interfaz
+                webcamSection.className = 'webcam-section active';
+                toggleLoading(false);
+                showStatus('¡Cámara iniciada correctamente! 📸');
+                
+                startBtn.textContent = '✅ Cámara Activa';
+                uploadBtn.disabled = false;
+                isWebcamMode = true;
+                isInitialized = true;
+
+                // Iniciar bucle de predicción
+                if (animationId) cancelAnimationFrame(animationId);
+                loop();
+
+            } catch (error) {
+                console.error('Error al inicializar:', error);
+                showStatus('Error al inicializar la cámara. Verifica los permisos.', 'error');
+                startBtn.disabled = false;
+                uploadBtn.disabled = false;
+                startBtn.textContent = '🚀 Iniciar Cámara';
+                toggleLoading(false);
+            }
+        }
+
+        // Función para activar el input de archivo
+        function triggerFileUpload() {
+            document.getElementById('file-input').click();
+        }
+
+        // Manejar carga de archivo
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validar que sea una imagen
+            if (!file.type.startsWith('image/')) {
+                showStatus('Por favor selecciona un archivo de imagen válido', 'error');
+                return;
+            }
+
+            try {
+                uploadBtn.disabled = true;
+                startBtn.disabled = true;
+                uploadBtn.textContent = 'Procesando...';
+                toggleLoading(true);
+
+                // Cargar modelo si no está cargado
+                await loadModel();
+
+                // Detener webcam si está activa
+                if (webcam && isWebcamMode) {
+                    if (animationId) cancelAnimationFrame(animationId);
+                }
+
+                // Crear URL de la imagen y mostrarla inmediatamente
+                const imageUrl = URL.createObjectURL(file);
+                uploadedImage.src = imageUrl;
+                
+                // Ocultar webcam y mostrar imagen
+                webcamContainer.style.display = 'none';
+                imageContainer.className = 'image-container active';
+                
+                // Configurar contenedores si no existen
+                labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = '';
+                setupPredictionContainers();
+                
+                // Mostrar sección
+                webcamSection.className = 'webcam-section active';
+                
+                // Esperar a que la imagen se cargue completamente
+                uploadedImage.onload = async function() {
+                    try {
+                        // Hacer predicción usando el elemento img directamente
+                        await predictImage(uploadedImage);
+                        
+                        toggleLoading(false);
+                        showStatus('¡Imagen analizada correctamente! 🖼️');
+                        uploadBtn.textContent = '📷 Subir Otra Foto';
+                        startBtn.disabled = false;
+                        uploadBtn.disabled = false;
+                        isWebcamMode = false;
+                        startBtn.textContent = '🚀 Iniciar Cámara';
+                        
+                        // Limpiar URL después de un tiempo
+                        setTimeout(() => {
+                            URL.revokeObjectURL(imageUrl);
+                        }, 1000);
+                        
+                    } catch (predictionError) {
+                        console.error('Error en predicción:', predictionError);
+                        showStatus('Error al analizar la imagen', 'error');
+                        uploadBtn.disabled = false;
+                        startBtn.disabled = false;
+                        uploadBtn.textContent = '📷 Subir Foto';
+                        toggleLoading(false);
+                        URL.revokeObjectURL(imageUrl);
+                    }
+                };
+
+                uploadedImage.onerror = function() {
+                    URL.revokeObjectURL(imageUrl);
+                    showStatus('Error al cargar la imagen. Verifica que sea un formato válido.', 'error');
+                    uploadBtn.disabled = false;
+                    startBtn.disabled = false;
+                    uploadBtn.textContent = '📷 Subir Foto';
+                    toggleLoading(false);
+                };
+
+            } catch (error) {
+                console.error('Error al procesar imagen:', error);
+                showStatus('Error al procesar la imagen: ' + error.message, 'error');
+                uploadBtn.disabled = false;
+                startBtn.disabled = false;
+                uploadBtn.textContent = '📷 Subir Foto';
+                toggleLoading(false);
+            }
+        }
+
+        // Hacer predicción en imagen estática
+        async function predictImage(img) {
+            try {
+                console.log('Haciendo predicción en imagen...');
+                const prediction = await model.predict(img);
+                console.log('Predicción completada:', prediction);
+                updatePredictionDisplay(prediction);
+            } catch (error) {
+                console.error('Error en predicción de imagen:', error);
+                throw error;
+            }
+        }
+
+        // Bucle principal para webcam
+        async function loop() {
+            if (!isWebcamMode || !webcam) return;
+            
+            webcam.update();
+            await predict();
+            animationId = window.requestAnimationFrame(loop);
+        }
+
+        // Realizar predicción en webcam
+        async function predict() {
+            try {
+                const prediction = await model.predict(webcam.canvas);
+                updatePredictionDisplay(prediction);
+            } catch (error) {
+                console.error('Error en predicción:', error);
+            }
+        }
+
+        // Actualizar la visualización de predicciones
+        function updatePredictionDisplay(prediction) {
+            predictions = prediction;
+            
+            // Encontrar la predicción con mayor confianza
+            let maxIndex = 0;
+            let maxConfidence = prediction[0].probability;
+            
+            for (let i = 1; i < prediction.length; i++) {
+                if (prediction[i].probability > maxConfidence) {
+                    maxConfidence = prediction[i].probability;
+                    maxIndex = i;
+                }
+            }
+
+            // Actualizar interfaz
+            for (let i = 0; i < maxPredictions; i++) {
+                const predictionDiv = labelContainer.childNodes[i];
+                const className = prediction[i].className;
+                const confidence = prediction[i].probability;
+                const percentage = Math.round(confidence * 100);
+                
+                // Agregar emojis según la clase
+                let emoji = '';
+                if (className.toLowerCase().includes('pizza')) emoji = '';
+                else if (className.toLowerCase().includes('hamburguesa') || className.toLowerCase().includes('burger')) emoji = '';
+                else emoji = '';
+                
+                predictionDiv.querySelector('.class-name').textContent = `${emoji} ${className}`;
+                predictionDiv.querySelector('.confidence-text').textContent = `${percentage}%`;
+                
+                // Actualizar barra de confianza
+                const fillBar = predictionDiv.querySelector('.confidence-fill');
+                fillBar.style.width = `${percentage}%`;
+                
+                // Resaltar el ganador
+                if (i === maxIndex && confidence > 0.5) {
+                    predictionDiv.className = 'prediction-item winner';
+                } else {
+                    predictionDiv.className = 'prediction-item';
+                }
+            }
+        }
+
+        // Manejar errores de cámara
+        window.addEventListener('error', (e) => {
+            if (e.message.includes('webcam')) {
+                showStatus('Error de cámara. Verifica los permisos.', 'error');
+            }
+        });
+
+        // Información al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            showStatus('Haz clic en "Iniciar Cámara" para comenzar', 'success');
+        });
+    </script>
+</body>
+</html>
